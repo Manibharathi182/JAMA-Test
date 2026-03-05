@@ -1,0 +1,108 @@
+/******************************************************************************
+ * File: PowerManagerService.cpp
+ * Purpose: Manage dual-input power paths and system telemetry for Carlink 
+ * Module: Autonomous Driving Controller (ADC)
+ * Compliance: ISO 26262 / MISRA C++
+ *****************************************************************************/
+
+#include <iostream>
+#include <vector>
+#include <chrono>
+#include <thread>
+
+// Mocking Embedded Hardware Interfaces
+namespace Hal {
+    enum class PowerPath { PRIMARY, SECONDARY, NONE };
+    enum class HealthStatus { OK, WARNING, CRITICAL_FAULT };
+
+    float ReadVoltage(int pin) { return 12.4f; } // Placeholder for ADC read
+    float ReadCurrent(int pin) { return 1.2f; }  // Placeholder for Current sense
+    float ReadTemp() { return 42.5f; }           // NTC Thermistor conversion
+    void SetGate(PowerPath path, bool state) { /* Low level GPIO/PWM logic */ }
+}
+
+class TelemetryPacket {
+public:
+    uint64_t timestamp;
+    float v_in;
+    float i_draw;
+    float temp_c;
+    Hal::HealthStatus system_state;
+
+    void serialize() {
+        // In a real system, this would package into a CAN FD frame or 10Base-T1S packet
+        std::cout << "[TELEMETRY][" << timestamp << "] V:" << v_in 
+                  << "V | I:" << i_draw << "A | Temp:" << temp_c << "C | State: " 
+                  << static_cast<int>(system_state) << std::endl;
+    }
+};
+
+class PowerManager {
+private:
+    Hal::PowerPath active_path = Hal::PowerPath::NONE;
+    const float TEMP_LIMIT = 80.0f; // SR-ENV-01.2
+    const int DEAD_TIME_MS = 1;     // SR-PWR-02: Prevent Cross-Conduction
+
+public:
+    void Init() {
+        std::cout << "Initializing Power Management Subsystem..." << std::endl;
+        SwitchPowerPath(Hal::PowerPath::PRIMARY);
+    }
+
+    // Prevents Cross-Conduction (Back-feeding protection logic)
+    void SwitchPowerPath(Hal::PowerPath new_path) {
+        if (active_path == new_path) return;
+
+        std::cout << "Transitioning Power Path to prevent Cross-Conduction..." << std::endl;
+        
+        // 1. Open all gates (Break-Before-Make logic)
+        Hal::SetGate(Hal::PowerPath::PRIMARY, false);
+        Hal::SetGate(Hal::PowerPath::SECONDARY, false);
+        
+        // 2. Hardware Enforced Dead-time (SR-PWR-02)
+        std::this_thread::sleep_for(std::chrono::milliseconds(DEAD_TIME_MS));
+
+        // 3. Close the new gate
+        Hal::SetGate(new_path, true);
+        active_path = new_path;
+        std::cout << "Power Path switched successfully." << std::endl;
+    }
+
+    void RunWorker() {
+        while (true) {
+            float current_temp = Hal::ReadTemp();
+            
+            // Thermal Mitigation (SR-ENV-01.4)
+            if (current_temp > TEMP_LIMIT) {
+                HandleCriticalFault("Thermal Overload Detected!");
+                break;
+            }
+
+            // Generate Telemetry (Maintain System Telemetry)
+            TelemetryPacket p;
+            p.timestamp = std::chrono::system_clock::now().time_since_epoch().count();
+            p.v_in = Hal::ReadVoltage(0);
+            p.i_draw = Hal::ReadCurrent(1);
+            p.temp_c = current_temp;
+            p.system_state = Hal::HealthStatus::OK;
+            
+            p.serialize();
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+    }
+
+    void HandleCriticalFault(std::string reason) {
+        std::cerr << "!!! CRITICAL FAULT: " << reason << " !!!" << std::endl;
+        Hal::SetGate(Hal::PowerPath::PRIMARY, false);
+        Hal::SetGate(Hal::PowerPath::SECONDARY, false);
+        // Trigger Emergency Stop in Motion Control Module
+    }
+};
+
+int main() {
+    PowerManager carlink_power;
+    carlink_power.Init();
+    carlink_power.RunWorker();
+    return 0;
+}
