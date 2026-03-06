@@ -2,7 +2,7 @@
  * File: PowerManagerService.cpp
  * Purpose: Manage dual-input power paths and system telemetry for Carlink 
  * Module: Autonomous Driving Controller (ADC)
- * Compliance: ISO 26262 / MISRA C++ test2
+ * Compliance: ISO 26262 / MISRA C++ test3
  *****************************************************************************/
 
 #include <iostream>
