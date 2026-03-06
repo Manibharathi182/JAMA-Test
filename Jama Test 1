@@ -16,7 +16,7 @@ namespace Hal {
     enum class PowerPath { PRIMARY, SECONDARY, NONE };
     enum class HealthStatus { OK, WARNING, CRITICAL_FAULT };
 
-    float ReadVoltage(int pin) { return 12.4f; } // Placeholder for ADC read
+    float ReadVoltage(int pin) { return 12.4f; } // Placeholder for ADC readd
     float ReadCurrent(int pin) { return 1.2f; }  // Placeholder for Current sense
     float ReadTemp() { return 42.5f; }           // NTC Thermistor conversion
     void SetGate(PowerPath path, bool state) { /* Low level GPIO/PWM logic */ }
