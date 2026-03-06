@@ -10,6 +10,7 @@
 #include <chrono>
 #include <thread>
 
+Implementing logic for BAF2-SWRQ-3
 // Mocking Embedded Hardware Interfaces
 namespace Hal {
     enum class PowerPath { PRIMARY, SECONDARY, NONE };
