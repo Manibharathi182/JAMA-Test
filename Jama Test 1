@@ -48,7 +48,7 @@ public:
         std::cout << "Initializing Power Management Subsystem..." << std::endl;
         SwitchPowerPath(Hal::PowerPath::PRIMARY);
     }
-
+Finalizing logic for BAF2-SWRQ-3
     // Prevents Cross-Conduction (Back-feeding protection logic)
     void SwitchPowerPath(Hal::PowerPath new_path) {
         if (active_path == new_path) return;
